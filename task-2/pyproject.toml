@@ -1,0 +1,21 @@
+[project]
+name = "task-2"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Maksim Goncharovskiy",email = "maksimgoncharovskiy@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "faker (>=37.11.0,<38.0.0)",
+    "aiogram (>=3.22.0,<4.0.0)",
+    "openai (>=2.2.0,<3.0.0)",
+    "environs (>=14.3.0,<15.0.0)",
+    "black (>=25.9.0,<26.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"

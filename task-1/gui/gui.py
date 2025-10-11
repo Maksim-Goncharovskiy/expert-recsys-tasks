@@ -8,6 +8,11 @@ import time
 
 
 def run_gui_app(api1: ASRApi, api2: ASRApi):
+    """
+    Конструирует streamlit-приложение.
+    Параметры:
+        * api1, api2: ASRApi - сравниваемые Api сервисы
+    """
     st.set_page_config(page_title="Сравнение сервисов транскрибации")
 
     st.markdown(
@@ -18,13 +23,13 @@ def run_gui_app(api1: ASRApi, api2: ASRApi):
     st.markdown(
         "<h4 style='color: black;'>1. Загрузите аудиофайл.</h4>", unsafe_allow_html=True
     )
-    audio_file: UploadedFile = st.file_uploader("", type=["wav"])
+    audio_file: UploadedFile = st.file_uploader("Audio", type=["wav"])
 
     st.markdown(
         "<h4 style='color: black;'>2. (Опционально)Загрузите файл с транскрипцией для расчёта метрики WER.</h4>",
         unsafe_allow_html=True,
     )
-    text_file: UploadedFile = st.file_uploader("", type=["txt"])
+    text_file: UploadedFile = st.file_uploader("Text", type=["txt"])
 
     _, col2, _ = st.columns([1, 1, 1])
     st.markdown(
@@ -74,8 +79,8 @@ def run_gui_app(api1: ASRApi, api2: ASRApi):
 
         api2_time: float = time.time() - api2_start_time
 
-        col1.text_area("", api1_transcription, height=200)
-        col2.text_area("", api2_transcription, height=200)
+        col1.text_area("Transcription", api1_transcription, height=200)
+        col2.text_area("Transcription", api2_transcription, height=200)
 
         if text_file:
             reference: str = text_file.read().decode("utf-8")
