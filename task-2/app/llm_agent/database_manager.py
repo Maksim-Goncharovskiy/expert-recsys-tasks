@@ -6,16 +6,23 @@ from .exceptions import DatabaseFileNotExists, NotSelectQuerySuggested, SqlQuery
 
 
 
+logger = logging.getLogger(__name__)
+
+
+
 @dataclass
 class DatabaseResults:
     """Формат возвращаемых результатов после выполнения запроса к базе данных"""
-    executed_sql_query: str = field(repr=True)
-    results: list[dict] = field(repr=True, default_factory=list)
-    count: int = field(repr=True, default=0) 
+    executed_sql_query: str = field(repr=True) 
+    results: list[dict] = field(repr=True, default_factory=list) # результаты запроса 
+    count: int = field(repr=True, default=0) # количество записей в результатах
 
 
 
 class DatabaseManager:
+    """
+    Класс-интерфейс работы с базой данных.
+    """
     def __init__(self, db_path: str):
         self.db_path = db_path
 
@@ -26,15 +33,19 @@ class DatabaseManager:
     def execute_query(self, sql_query) -> DatabaseResults:
         """Выполняет SQL-запрос и возвращает результаты"""
         try:
+            logger.info(f"Попытка выполнить SQL-запрос: {sql_query}")
+
             # Безопасность: разрешаем только SELECT запросы
             clean_query = sql_query.strip().upper()
             if not clean_query.startswith("SELECT"):
                 error_msg = f"Допустимы только SELECT запросы. Был предожен следующий запрос: {clean_query}"
+                logger.error(error_msg)
                 raise NotSelectQuerySuggested(error_msg)
 
             # Проверяем существование файла базы
             if not os.path.exists(self.db_path):
                 error_msg = f"Файл базы данных по пути: {self.db_path} не найден!"
+                logger.error(error_msg)
                 raise DatabaseFileNotExists(error_msg)
             
             # Подключаемся к базе данных
@@ -67,9 +78,11 @@ class DatabaseManager:
 
         except sqlite3.Error as err:
             error_msg = f"Ошибка обращения к базе данных: {str(err)}"
+            logger.error(error_msg)
             raise SqlQueryExecutionError(error_msg)
         
 
         except Exception as err:
             error_msg = f"Неизвестная ошибка при обращении к базе данных: {str(err)}"
+            logger.error(error_msg)
             raise SqlQueryExecutionError(error_msg)

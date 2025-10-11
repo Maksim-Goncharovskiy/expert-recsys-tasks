@@ -1,9 +1,14 @@
 import os
 import json
 from dataclasses import dataclass, field 
+import logging 
 from openai import AsyncOpenAI
 from .database_manager import DatabaseManager, DatabaseResults
 from .exceptions import DatabaseSchemaFileNotExists, ClassificationError, SqlQueryGenerationError, GeneralAnswerGenerationError, FinalAnswerGenerationError
+
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass 
@@ -55,6 +60,8 @@ class LLMAgent:
 
 """
         try:
+            logger.info(f"Выполняется классификация запроса: {user_query}")
+
             response = await self.client.chat.completions.create(
                 messages=[{"role": "user", "content": prompt}],
                 model=self.model,
@@ -63,12 +70,16 @@ class LLMAgent:
             )
             
             result = response.choices[0].message.content.strip()
+
             classification = 1 if result == '1' else 0
+
+            logger.info(f"Результат классификации для запроса '{user_query}': {classification}")
 
             return classification
             
         except Exception as err:
             error_msg = f"Ошибка классификации: {err}"
+            logger.error(f"Ошибка при выполнении классификации запроса: {err}")
             raise ClassificationError(error_msg)
     
 
@@ -112,6 +123,8 @@ class LLMAgent:
 
     """
         try:
+            logger.info(f"Попытка генерации SQL-запроса для запроса пользователя: {user_query}")
+
             response = await self.client.chat.completions.create(
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0,
@@ -128,14 +141,19 @@ class LLMAgent:
                 if tool_call.function.name == "execute_sql_query":
                     function_args = json.loads(tool_call.function.arguments)
                     sql_query = function_args.get("sql_query", "")
+
+                    logger.info(f"Для запроса: {user_query} был успешно сгенерирован SQL-запрос: {sql_query}")
+
                     return sql_query
                 
                 else:
                     error_msg = f"Ошибка при генерации SQL-запроса агентом. Агент вызвал не ту функцию. Вызванная функция: {tool_call.function.name}. Нужно было вызвать: execute_sql_query."
+                    logger.error(error_msg)
                     raise SqlQueryGenerationError(error_msg)
                 
             else:
                 error_msg = f"Ошибка при генерации SQL-запроса агентом. Агент не вызвал ни одного инструмента. Нужно было вызвать функцию execute_sql_query."
+                logger.error(error_msg)
                 raise SqlQueryGenerationError(error_msg)
         
 
@@ -145,6 +163,7 @@ class LLMAgent:
 
         except Exception as err:
             error_msg = f"Ошибка при генерации SQL-запроса: {err}"
+            logger.error(error_msg)
             raise SqlQueryGenerationError(error_msg)
     
 
@@ -170,11 +189,14 @@ class LLMAgent:
             )
             
             result = response.choices[0].message.content.strip()
-            
+
+            logger.info(f"Сгенерирован общий ответ: {result}")
+
             return result
             
         except Exception as err:
             error_msg = f"Ошибка генерации общего ответа: {err}"
+            logger.error(error_msg)
             raise GeneralAnswerGenerationError(error_msg)
     
 
@@ -200,6 +222,8 @@ class LLMAgent:
 ТВОЙ ОТВЕТ:
 """
         try:
+            logger.info(f"Генерация финального ответа для запроса: {user_query}")
+
             response = await self.client.chat.completions.create(
                 messages=[{"role": "user", "content": prompt}],
                 model=self.model,
@@ -220,17 +244,20 @@ class LLMAgent:
         answer: str = ''
 
         if clf == 0:
+            logger.info(f"Запрос {user_query} был классифицирован как общий. Обращение к базе данных не требуется.")
+
             answer = await self.generate_general_query(user_query)
         else:
+            logger.info(f"Запрос {user_query} был классифицирован как требующий обращения к БД.")
+
             sql_query: str = await self.generate_sql_query(user_query)
 
             db_result: DatabaseResults = self.db_manager.execute_query(sql_query)
 
+            logger.info(f"Для запроса `{user_query}` были получены данные из БД: `{db_result}`")
+
             answer = await self.generate_final_answer(user_query, db_result)
+
+            logger.info(f"Финальный ответ был успешно сгенерирован: {answer}")
         
         return answer
-
-
-        
-
-        

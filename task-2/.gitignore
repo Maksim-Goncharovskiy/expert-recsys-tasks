@@ -2,6 +2,9 @@ sqlite/
 *.sqlite3
 *.db
 
+logs/
+*log.txt
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
