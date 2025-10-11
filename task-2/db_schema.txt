@@ -1,0 +1,31 @@
+База данных library содержит 4 таблицы, описанные ниже:
+
+Таблица 'authors' - информация об авторах. Содержит следующие поля:
+- author_id (INTEGER) 
+- last_name (TEXT, NOT NULL). Фамилия автора. Возможные значения: Боброва, Федосий, Субботина, Достоевский, Толстой, Пушкин, Кристи, Кинг, Гоголь, Оруэлл, Комарова, Зоя, Ольга, Абрамов, Гордеев, Овчинников, Ия, Твердислав, Горшков, Сиклитикия, Власов, Агафон 
+- country (TEXT, NOT NULL). Возможные значения: Судан, Южный Судан, Япония, Лесото, Мьянма, Антигуа и Барбуда, Россия, Индия, Кувейт, Бахрейн, Великобритания, Мексика, Гаити, Республика Конго, США
+- birth_year (INTEGER)
+    
+Таблица 'books' - информация о книгах библиотеки. Содержит следующие поля:
+- book_id (INTEGER PRIMARY KEY AUTOINCREMENT)
+- title (TEXT NOT NULL)
+- author_id (INTEGER)
+- genre (TEXT NOT NULL). Жанр книги. Возможные значения: Учебник, Биография, Роман, Поэзия, Детектив, Научная литература, Триллер, Исторический роман, Фантастика
+- publication_year (INTEGER)
+- is_available (BOOLEAN DEFAULT TRUE)
+- FOREIGN KEY (author_id) REFERENCES authors (author_id)
+
+Таблица 'borrowers' - информация о читателях, которые берут книги в библиотеке. Содержит следующие поля:
+- borrower_id (INTEGER PRIMARY KEY AUTOINCREMENT)
+- full_name (TEXT NOT NULL)
+- email (TEXT)
+- phone (TEXT)
+    
+Таблица 'borrow_records' - информация о выдаче книг.
+- record_id (INTEGER PRIMARY KEY AUTOINCREMENT)
+- book_id (INTEGER)
+- borrower_id (INTEGER)
+- borrow_date (DATE)
+- return_date (DATE)
+- FOREIGN KEY (book_id) REFERENCES books (book_id),
+- FOREIGN KEY (borrower_id) REFERENCES borrowers (borrower_id)

@@ -8,14 +8,16 @@ fake = Faker('ru_RU')
 
 def create_database():
     """Создание базы данных и таблиц"""
-    conn = sqlite3.connect('lib_db.sqlite3')
+    conn = sqlite3.connect('library.sqlite3')
     cursor = conn.cursor()
     
     # Создание таблиц
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS authors (
             author_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            full_name TEXT NOT NULL,
+            last_name TEXT NOT NULL,
+            first_name TEXT NOT NULL,
+            middle_name TEXT,
             country TEXT NOT NULL,
             birth_year INTEGER
         )
@@ -36,7 +38,9 @@ def create_database():
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS borrowers (
             borrower_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            full_name TEXT NOT NULL,
+            last_name TEXT NOT NULL,
+            first_name TEXT NOT NULL,
+            middle_name TEXT,
             email TEXT,
             phone TEXT
         )
@@ -56,32 +60,65 @@ def create_database():
     
     return conn, cursor
 
+def split_russian_name(full_name):
+    """Разделяет русское ФИО на фамилию, имя и отчество"""
+    parts = full_name.split()
+    if len(parts) == 3:
+        return parts[0], parts[1], parts[2]  # Фамилия, Имя, Отчество
+    elif len(parts) == 2:
+        return parts[0], parts[1], None      # Фамилия, Имя, без отчества
+    else:
+        return full_name, "", None           # Если формат нестандартный
+
 def generate_authors(cursor, count=15):
-    """Генерация авторов"""
+    """Генерация авторов с разделением ФИО"""
     authors_data = []
     for i in range(count):
+        full_name = fake.name()
+        last_name, first_name, middle_name = split_russian_name(full_name)
+        
         author = {
-            'full_name': fake.name(),
+            'last_name': last_name,
+            'first_name': first_name,
+            'middle_name': middle_name,
             'country': fake.country(),
             'birth_year': random.randint(1950, 1990)
         }
         authors_data.append(author)
     
     cursor.executemany(
-        'INSERT INTO authors (full_name, country, birth_year) VALUES (?, ?, ?)',
-        [(a['full_name'], a['country'], a['birth_year']) for a in authors_data]
+        '''INSERT INTO authors (last_name, first_name, middle_name, country, birth_year) 
+           VALUES (?, ?, ?, ?, ?)''',
+        [(a['last_name'], a['first_name'], a['middle_name'], a['country'], a['birth_year']) 
+         for a in authors_data]
     )
     return [i+1 for i in range(count)]  # Возвращаем список author_id
 
 def generate_books(cursor, author_ids, count=50):
     """Генерация книг"""
     genres = ['Фантастика', 'Детектив', 'Роман', 'Научная литература', 
-              'Исторический роман', 'Биография', 'Поэзия', 'Учебник', 'Триллер']
+              'Исторический роман', 'Биография', 'Поэзия', 'Учебник', 'Триллер', 'Ужасы']
+    
+    # Список реалистичных названий книг для большей правдоподобности
+    book_templates = [
+        "Тайна {}",
+        "История {}",
+        "{} и его время",
+        "Загадочный {}",
+        "Путь к {}",
+        "Секрет {}",
+        "В поисках {}",
+        "{} над бездной",
+        "Последний {}",
+        "{} из прошлого"
+    ]
     
     books_data = []
     for i in range(count):
+        book_title = random.choice(book_templates).format(fake.word().title())
+        
         book = {
-            'title': fake.catch_phrase().title(),
+            'title': book_title,
             'author_id': random.choice(author_ids),
             'genre': random.choice(genres),
             'publication_year': random.randint(1990, 2024),
@@ -98,19 +135,26 @@ def generate_books(cursor, author_ids, count=50):
     return [i+1 for i in range(count)]  # Возвращаем список book_ids
 
 def generate_borrowers(cursor, count=30):
-    """Генерация читателей"""
+    """Генерация читателей с разделением ФИО"""
     borrowers_data = []
     for i in range(count):
+        full_name = fake.name()
+        last_name, first_name, middle_name = split_russian_name(full_name)
+        
         borrower = {
-            'full_name': fake.name(),
+            'last_name': last_name,
+            'first_name': first_name,
+            'middle_name': middle_name,
             'email': fake.email(),
             'phone': fake.phone_number()
         }
         borrowers_data.append(borrower)
     
     cursor.executemany(
-        'INSERT INTO borrowers (full_name, email, phone) VALUES (?, ?, ?)',
-        [(b['full_name'], b['email'], b['phone']) for b in borrowers_data]
+        '''INSERT INTO borrowers (last_name, first_name, middle_name, email, phone) 
+           VALUES (?, ?, ?, ?, ?)''',
+        [(b['last_name'], b['first_name'], b['middle_name'], b['email'], b['phone']) 
+         for b in borrowers_data]
     )
     return [i+1 for i in range(count)]  # Возвращаем список borrower_ids
 
@@ -146,37 +190,41 @@ def generate_borrow_records(cursor, book_ids, borrower_ids, count=40):
 def add_specific_books_and_authors(cursor):
     """Добавление конкретных книг и авторов для более реалистичных тестов"""
     
-    # Добавляем известных авторов
+    # Добавляем известных авторов с разделением ФИО
     famous_authors = [
-        ('Фёдор Достоевский', 'Россия', 1821),
-        ('Лев Толстой', 'Россия', 1828),
-        ('Александр Пушкин', 'Россия', 1799),
-        ('Агата Кристи', 'Великобритания', 1890),
-        ('Стивен Кинг', 'США', 1947)
+        ('Достоевский', 'Фёдор', 'Михайлович', 'Россия', 1821),
+        ('Толстой', 'Лев', 'Николаевич', 'Россия', 1828),
+        ('Пушкин', 'Александр', 'Сергеевич', 'Россия', 1799),
+        ('Кристи', 'Агата', None, 'Великобритания', 1890),
+        ('Кинг', 'Стивен', None, 'США', 1947),
+        ('Гоголь', 'Николай', 'Васильевич', 'Россия', 1809),
+        ('Оруэлл', 'Джордж', None, 'Великобритания', 1903)
     ]
     
     cursor.executemany(
-        'INSERT INTO authors (full_name, country, birth_year) VALUES (?, ?, ?)',
+        '''INSERT INTO authors (last_name, first_name, middle_name, country, birth_year) 
+           VALUES (?, ?, ?, ?, ?)''',
         famous_authors
     )
     
     # Получаем ID добавленных авторов
-    cursor.execute("SELECT author_id FROM authors WHERE full_name = 'Фёдор Достоевский'")
-    dostoevsky_id = cursor.fetchone()[0]
-    
-    cursor.execute("SELECT author_id FROM authors WHERE full_name = 'Агата Кристи'")
-    christie_id = cursor.fetchone()[0]
-    
-    cursor.execute("SELECT author_id FROM authors WHERE full_name = 'Стивен Кинг'")
-    king_id = cursor.fetchone()[0]
+    author_ids = {}
+    for last_name in ['Достоевский', 'Кристи', 'Кинг', 'Толстой', 'Пушкин', 'Гоголь', 'Оруэлл']:
+        cursor.execute("SELECT author_id FROM authors WHERE last_name = ?", (last_name,))
+        result = cursor.fetchone()
+        if result:
+            author_ids[last_name] = result[0]
     
     # Добавляем известные книги
     famous_books = [
-        ('Преступление и наказание', dostoevsky_id, 'Роман', 1866, True),
-        ('Убийство в Восточном экспрессе', christie_id, 'Детектив', 1934, True),
-        ('Оно', king_id, 'Ужасы', 1986, False),
-        ('Анна Каренина', dostoevsky_id + 1, 'Роман', 1877, True),  # Толстой следующий за Достоевским
-        ('Евгений Онегин', dostoevsky_id + 2, 'Поэзия', 1833, True)  # Пушкин следующий
+        ('Преступление и наказание', author_ids['Достоевский'], 'Роман', 1866, True),
+        ('Убийство в Восточном экспрессе', author_ids['Кристи'], 'Детектив', 1934, True),
+        ('Оно', author_ids['Кинг'], 'Ужасы', 1986, False),
+        ('Анна Каренина', author_ids['Толстой'], 'Роман', 1877, True),
+        ('Евгений Онегин', author_ids['Пушкин'], 'Поэзия', 1833, True),
+        ('Мёртвые души', author_ids['Гоголь'], 'Роман', 1842, True),
+        ('1984', author_ids['Оруэлл'], 'Антиутопия', 1949, True),
+        ('Идиот', author_ids['Достоевский'], 'Роман', 1869, False)
     ]
     
     cursor.executemany(
@@ -234,15 +282,16 @@ def main():
         # Покажем несколько примеров для проверки
         print("\nПримеры данных:")
         print("\nНесколько авторов:")
-        cursor.execute("SELECT * FROM authors LIMIT 3")
+        cursor.execute('''SELECT author_id, last_name, first_name, middle_name, country 
+                          FROM authors LIMIT 5''')
         for row in cursor.fetchall():
             print(f"  {row}")
             
-        print("\nНесколько книг:")
-        cursor.execute('''SELECT b.title, a.full_name, b.genre 
+        print("\nНесколько книг с авторами:")
+        cursor.execute('''SELECT b.title, a.last_name, a.first_name, b.genre 
                           FROM books b 
                           JOIN authors a ON b.author_id = a.author_id 
-                          LIMIT 3''')
+                          LIMIT 5''')
         for row in cursor.fetchall():
             print(f"  {row}")
             
