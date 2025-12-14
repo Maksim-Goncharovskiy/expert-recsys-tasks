@@ -7,7 +7,8 @@ from aiogram.fsm.state import default_state
 from aiogram.fsm.context import FSMContext
 from app.bot.lexicon import LEXICON_RU
 from app.bot.fsm import UserStates
-from app.database import CsvMovieDatabaseManager, CsvDatabaseConfig
+from app.database import db_manager
+from app.recsys import recsys, ColdStartError
 from app.bot.keyboards import rating_keyboard
 from config import CONFIG
 
@@ -16,12 +17,6 @@ logger = logging.getLogger(__name__)
 
 
 command_router = Router()
-
-
-db_manager = CsvMovieDatabaseManager(config=CsvDatabaseConfig(
-    db_path=CONFIG.db.path,
-    user_table=CONFIG.db.user_table,
-    movie_table=CONFIG.db.movie_table))
 
 
 
@@ -70,4 +65,27 @@ async def start_rating(message: Message, state: FSMContext):
 async def cancel_rating(message: Message, state: FSMContext):
     """Выход из процедуры оценивания"""
     await state.clear()
+    recsys.finetune_user(user_id=message.from_user.id)
     await message.answer(LEXICON_RU["commands"]["rate_finished"])
+
+
+
+@command_router.message(Command(commands=["recommend"]), StateFilter(default_state))
+async def get_recommendations(message: Message, state: FSMContext):
+    """Получение рекомендаций"""
+    user_id = message.from_user.id
+    try:
+        recommendations = recsys.provide_recommendation(user_id=user_id)
+
+        answer = "Возможно вам понравится:\n"
+        for idx, movie in enumerate(recommendations):
+            answer += f"{idx + 1}. {movie}\n"
+        
+    except ColdStartError as err:
+        answer = f"Вы оценили недостаточное количество фильмов. Запустите процедуру оценивания /rate и оцените {recsys.cold_start_threshold} фильмов"
+    
+    except Exception as err:
+        answer = "Внутренняя ошибка сервера"
+        logger.error(f"{err}")
+
+    await message.answer(answer)

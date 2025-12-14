@@ -8,7 +8,8 @@ from aiogram.fsm.state import default_state
 from aiogram.fsm.context import FSMContext
 from app.bot.lexicon import LEXICON_RU
 from app.bot.fsm import UserStates
-from app.database import CsvMovieDatabaseManager, CsvDatabaseConfig
+from app.database import db_manager
+from app.recsys import recsys
 from app.bot.keyboards import rating_keyboard
 from config import CONFIG
 
@@ -17,12 +18,6 @@ logger = logging.getLogger(__name__)
 
 
 callback_router = Router()
-
-
-db_manager = CsvMovieDatabaseManager(config=CsvDatabaseConfig(
-    db_path=CONFIG.db.path,
-    user_table=CONFIG.db.user_table,
-    movie_table=CONFIG.db.movie_table))
 
 
 
@@ -56,5 +51,6 @@ async def process_rate(callback: CallbackQuery, state: FSMContext):
 async def process_rate(callback: CallbackQuery, state: FSMContext):
     """Обработка нажатия на кнопку 'закончить оценивание' """
     await state.clear()
+    recsys.finetune_user(callback.from_user.id)
     await callback.message.edit_reply_markup(reply_markup=None)
     await callback.message.edit_text(LEXICON_RU["commands"]["rate_finished"])

@@ -3,3 +3,5 @@ from .database_manager import (MovieDatabaseManager,
                                 DatabaseNotExists, 
                                 UserTableNotExists, 
                                 MovieTableNotExists)
+
+from .recsys import RecSys
